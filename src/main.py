@@ -25,7 +25,7 @@ def get_all_links(data_dict: dict):
     soup = BeautifulSoup(response.text, "html.parser")
     links = soup.find_all("a")
 
-    for link in tqdm(links, leave=True, ascii=True, desc=data_dict["name"],unit="pages"):
+    for link in tqdm(links, leave=False, ascii=True, desc=data_dict["name"],unit="pages"):
         url = link.get("href")
         if url:
             full_url = urljoin(base_url, url)
@@ -56,7 +56,7 @@ def download_pdf(library):
     if r.status_code == 200:
         total_size_in_bytes= int(r.headers.get('content-length', 0))
         block_size = 1024 #1 Kibibyte
-        progress_bar = tqdm(total=total_size_in_bytes, unit='iB', unit_scale=True,leave=True, ascii=True, desc=library["name"])
+        progress_bar = tqdm(total=total_size_in_bytes, unit='iB', unit_scale=True,leave=False, ascii=True, desc=library["name"])
         with open(f'documents/{str(library["name"]).lower()}.pdf', 'wb') as f:
             for data in r.iter_content(block_size):
                 progress_bar.update(len(data))
@@ -85,39 +85,39 @@ def merge_pdfs():
 
 def main():
     library_list: list = [
-        # {
-        #     "name": "FastAPI",
-        #     "base_url": "https://fastapi.tiangolo.com",
-        #     "hrefs_to_skip": [
-        #         "/sponsors/",
-        #         "/de/",
-        #         "/em/",
-        #         "/es/",
-        #         "/fa/",
-        #         "/fr/",
-        #         "/he/",
-        #         "/id/",
-        #         "/ja/",
-        #         "/ko/",
-        #         "/pl/",
-        #         "/pt/",
-        #         "/ru/",
-        #         "/tr/",
-        #         "/uk/",
-        #         "/ur/",
-        #         "/vi/",
-        #         "/yo/",
-        #         "/zh/",
-        #         "/zh/",
-        #     ],
-        #     "pdf": False,
-        # },
-        # {
-        #     "name": "SQLAlchemy",
-        #     "base_url": "https://docs.sqlalchemy.org/en/20/",
-        #     "hrefs_to_skip": [".zip"],
-        #     "pdf": False,
-        # },
+        {
+            "name": "FastAPI",
+            "base_url": "https://fastapi.tiangolo.com",
+            "hrefs_to_skip": [
+                "/sponsors/",
+                "/de/",
+                "/em/",
+                "/es/",
+                "/fa/",
+                "/fr/",
+                "/he/",
+                "/id/",
+                "/ja/",
+                "/ko/",
+                "/pl/",
+                "/pt/",
+                "/ru/",
+                "/tr/",
+                "/uk/",
+                "/ur/",
+                "/vi/",
+                "/yo/",
+                "/zh/",
+                "/zh/",
+            ],
+            "pdf": False,
+        },
+        {
+            "name": "SQLAlchemy",
+            "base_url": "https://docs.sqlalchemy.org/en/20/",
+            "hrefs_to_skip": [".zip"],
+            "pdf": False,
+        },
         {
             "name": "Loguru",
             "base_url": "https://loguru.readthedocs.io/en/stable/",
@@ -142,24 +142,12 @@ def main():
             "hrefs_to_skip": ["/dev/", "/1."],
             "pdf": False,
         },
-        # {
-        #     "name": "alembic",
-        #     "base_url": "https://alembic.sqlalchemy.org/en/latest/",
-        #     "hrefs_to_skip": [],
-        #     "pdf": False,
-        # },
         {
             "name": "Textblob",
             "base_url": "https://textblob.readthedocs.io/_/downloads/en/latest/pdf/",
             "hrefs_to_skip": [],
             "pdf": True,
         },
-        # {
-        #     "name": "MkDocs-Material",
-        #     "base_url": "https://squidfunk.github.io/mkdocs-material/",
-        #     "hrefs_to_skip": [],
-        #     "pdf": False,
-        # },
         {
             "name": "Pytest",
             "base_url": "https://docs.pytest.org/_/downloads/en/7.4.x/pdf/",
@@ -173,19 +161,47 @@ def main():
             "pdf": True,
         },
         # {
+        #     "name": "alembic",
+        #     "base_url": "https://alembic.sqlalchemy.org/en/latest/",
+        #     "hrefs_to_skip": [],
+        #     "pdf": False,
+        # },
+        # {
+        #     "name": "MkDocs-Material",
+        #     "base_url": "https://squidfunk.github.io/mkdocs-material/",
+        #     "hrefs_to_skip": [],
+        #     "pdf": False,
+        # },
+        # {
         #     "name": "Sample",
         #     "base_url": "https://xyz.com",
         #     "hrefs_to_skip": [],
         #     "pdf": False,
         # },
     ]
+    import time
+    t0 = time.time()
+
     tasks = [download_pdf(library) if library["pdf"] is True else get_all_links(data_dict=library) \
         for library in tqdm(library_list, ascii=False, leave=True, desc="Libraries Processing")]
     
-    for task in tasks:
+    for task in tqdm(tasks, ascii=False, leave=True, desc="Libraries Processed"):
         task.result()
+    t1 = time.time() - t0
+    minutes, seconds = divmod(t1, 60)
+    print(f"Time taken to download PDFs: {int(minutes)} minutes and {int(seconds)} seconds")
 
-    # merge_pdfs()
+    merge_pdfs()
+
+    t2 = time.time() - t1
+    minutes, seconds = divmod(t2, 60)
+    print(f"Time taken to merge the documents: {int(minutes)} minutes and {int(seconds)} seconds")
+    
+    t3 = time.time() - t0
+    minutes, seconds = divmod(t3, 60)
+    print(f"Total time taken: {int(minutes)} minutes and {int(seconds)} seconds")
+
+
 
 
 if __name__ == "__main__":
