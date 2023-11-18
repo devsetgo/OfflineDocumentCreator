@@ -1,5 +1,12 @@
-requests
 beautifulsoup4
-pdfkit
-pytest
 black
+coverage-badge
+markdown
+pdfkit
+pre-commit
+PyPDF2
+pytest
+requests
+tqdm
+weasyprint
+httpx
