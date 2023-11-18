@@ -33,6 +33,7 @@ def get_all_links(data_dict: dict):
                 and "#" not in full_url
                 and not full_url.endswith(".com/")
             ):
+                print(full_url)
                 try:
                     pdfkit.from_url(
                         full_url,
@@ -52,16 +53,18 @@ def merge_pdfs():
     merger = PdfMerger()
 
     for pdf in tqdm(pdfs, ascii=True, leave=True):
+        # print(pdf)
         merger.append(pdf)
 
-    merger.write("documents/merged.pdf")
+    merger.write("final/libraries.pdf")
     merger.close()
+    print("PDFs merged successfully!")
 
 
 def main():
     library_list: list = [
         {
-            "name": "fastapi",
+            "name": "FastAPI",
             "base_url": "https://fastapi.tiangolo.com",
             "hrefs_to_skip": [
                 "/sponsors/",
@@ -87,31 +90,38 @@ def main():
             ],
         },
         {
-            "name": "sqlalchemy",
+            "name": "SQLAlchemy",
             "base_url": "https://docs.sqlalchemy.org/en/20/",
             "hrefs_to_skip": [".zip"],
         },
         {
+            "name": "Loguru",
             "base_url": "https://loguru.readthedocs.io/en/stable/",
             "hrefs_to_skip": ["/downloads/", "/0."],
         },
         {
-            "name": "httpx",
+            "name": "HTTPX",
             "base_url": "https://www.python-httpx.org/",
             "hrefs_to_skip": [],
         },
-        {"name": "tqdm", "base_url": "https://tqdm.github.io/", "hrefs_to_skip": []},
         {
-            "name": "pydantic",
+            "name": "TQDM",
+            "base_url": "https://tqdm.github.io/",
+            "hrefs_to_skip": ["/slides", "/presentation", "/merch", "..", "video"],
+        },
+        {
+            "name": "Pydantic",
             "base_url": "https://docs.pydantic.dev/latest/",
             "hrefs_to_skip": ["/dev/", "/1."],
         },
-        # {'name':'x',"base_url": "https://xyz.com", "hrefs_to_skip": []},
-        # {'name':'x',"base_url": "https://xyz.com", "hrefs_to_skip": []},
-        # {'name':'x',"base_url": "https://xyz.com", "hrefs_to_skip": []},
+        # {'name':'Xyz',"base_url": "https://xyz.com", "hrefs_to_skip": []},
+        # {'name':'Xyz',"base_url": "https://xyz.com", "hrefs_to_skip": []},
+        # {'name':'Xyz',"base_url": "https://xyz.com", "hrefs_to_skip": []},
     ]
     for library in tqdm(library_list, ascii=True, leave=True):
         get_all_links(data_dict=library)
+
+    merge_pdfs()
 
 
 if __name__ == "__main__":
