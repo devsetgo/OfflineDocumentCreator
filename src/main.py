@@ -1,31 +1,29 @@
+import os
 import requests
 from bs4 import BeautifulSoup
-import pdfkit
-import os
 from urllib.parse import urlparse, urljoin
-from tqdm import tqdm  # For progress bar
-import shutil
+from tqdm import tqdm
 from unsync import unsync
+from PyPDF2 import PdfMerger
+import pdfkit
+import glob
 
-failed_urls = []
+
+failed_urls =[]
 good_urls = []
 
+def create_directory(directory_name):
+    if not os.path.exists(directory_name):
+        os.makedirs(directory_name)
 
-@unsync
-def get_all_links(data_dict: dict):
-    # Create a directory to store the PDFs
-    if not os.path.exists("documents"):
-        os.makedirs("documents")
-
-    base_url = data_dict["base_url"]
-    hrefs_to_skip = data_dict["hrefs_to_skip"]
+def get_links_from_url(base_url, hrefs_to_skip):
     domain = urlparse(base_url).netloc
-
     response = requests.get(base_url)
     soup = BeautifulSoup(response.text, "html.parser")
     links = soup.find_all("a")
 
-    for link in tqdm(links, leave=False, ascii=True, desc=data_dict["name"],unit="pages"):
+    valid_links = []
+    for link in tqdm(links, leave=False, ascii=True, unit="pages"):
         url = link.get("href")
         if url:
             full_url = urljoin(base_url, url)
@@ -37,27 +35,18 @@ def get_all_links(data_dict: dict):
                 and not full_url.endswith(".com/")
                 and not full_url.endswith(".zip")
             ):
-                # print(full_url)
-                try:
-                    pdfkit.from_url(
-                        full_url,
-                        f'documents/{domain}_{urlparse(full_url).path.replace("/", "_")}.pdf',
-                    )
-                    good_urls.append(full_url)
-                    
-                except Exception as e:
-                    print(f"Failed to create PDF for {full_url}. Reason: {str(e)}")
-                    failed_urls.append(full_url)
-    return data_dict["name"]
+                valid_links.append(full_url)
+    return valid_links
 
 @unsync
 def download_pdf(library):
     r = requests.get(library["base_url"], stream=True)
     if r.status_code == 200:
-        total_size_in_bytes= int(r.headers.get('content-length', 0))
-        block_size = 1024 #1 Kibibyte
-        progress_bar = tqdm(total=total_size_in_bytes, unit='iB', unit_scale=True,leave=False, ascii=True, desc=library["name"])
-        with open(f'documents/{str(library["name"]).lower()}.pdf', 'wb') as f:
+        total_size_in_bytes = int(r.headers.get('content-length', 0))
+        block_size = 1024  # 1 Kibibyte
+        progress_bar = tqdm(total=total_size_in_bytes, unit='iB', unit_scale=True,
+                            leave=False, ascii=True, desc=library["name"])
+        with open(f'documents/{library["name"]}/{str(library["name"]).lower()}.pdf', 'wb') as f:
             for data in r.iter_content(block_size):
                 progress_bar.update(len(data))
                 f.write(data)
@@ -67,24 +56,45 @@ def download_pdf(library):
     return "done"
 
 
-def merge_pdfs():
-    from PyPDF2 import PdfMerger
-    import glob
-
-    pdfs = glob.glob("documents/*.pdf")
+def merge_pdfs(library_name):
+    pdfs = glob.glob(f"documents/{library_name}/*.pdf")
     merger = PdfMerger()
 
     for pdf in tqdm(pdfs, ascii=False, leave=True):
-        # print(pdf)
         merger.append(pdf)
 
-    merger.write("final/libraries.pdf")
+    merger.write(f"final/{library_name}.pdf")
     merger.close()
-    print("PDFs merged successfully!")
+    print(f"PDFs for {library_name} merged successfully!")
+
+
+
+@unsync
+def process_library(library):
+    if library["pdf"]:
+        create_directory(f"documents/{library['name']}")
+        download_pdf(library)
+        return library["name"]
+    else:
+        links = get_links_from_url(library["base_url"], library["hrefs_to_skip"])
+        create_directory("documents")
+        for link in tqdm(links,leave=False, ascii=True, unit="pages",desc=library["name"]):
+            try:
+                create_directory(f"documents/{library['name']}")
+                pdfkit.from_url(
+                    link,
+                    f'documents/{library["name"]}/{library["name"]}_{urlparse(link).path.replace("/", "_")}.pdf',
+                )
+                good_urls.append(link)
+            except Exception as e:
+                print(f"Failed to create PDF for {link}. Reason: {str(e)}")
+                failed_urls.append(link)
+        return library["name"]
+
 
 
 def main():
-    library_list: list = [
+    library_list = [
         {
             "name": "FastAPI",
             "base_url": "https://fastapi.tiangolo.com",
@@ -160,38 +170,24 @@ def main():
             "hrefs_to_skip": [],
             "pdf": True,
         },
-        # {
-        #     "name": "alembic",
-        #     "base_url": "https://alembic.sqlalchemy.org/en/latest/",
-        #     "hrefs_to_skip": [],
-        #     "pdf": False,
-        # },
-        # {
-        #     "name": "MkDocs-Material",
-        #     "base_url": "https://squidfunk.github.io/mkdocs-material/",
-        #     "hrefs_to_skip": [],
-        #     "pdf": False,
-        # },
-        # {
-        #     "name": "Sample",
-        #     "base_url": "https://xyz.com",
-        #     "hrefs_to_skip": [],
-        #     "pdf": False,
-        # },
+        # Add more libraries as needed
     ]
+
+    create_directory("final")
     import time
     t0 = time.time()
 
-    tasks = [download_pdf(library) if library["pdf"] is True else get_all_links(data_dict=library) \
-        for library in tqdm(library_list, ascii=False, leave=True, desc="Libraries Processing")]
+    tasks = [process_library(library) for library in tqdm(library_list, ascii=False, leave=True, desc="Libraries Processing")]
     
     for task in tqdm(tasks, ascii=False, leave=True, desc="Libraries Processed"):
-        task.result()
+        library_name = task.result()
+        merge_pdfs(library_name)
+
     t1 = time.time() - t0
     minutes, seconds = divmod(t1, 60)
     print(f"Time taken to download PDFs: {int(minutes)} minutes and {int(seconds)} seconds")
 
-    merge_pdfs()
+    # merge_pdfs()
 
     t2 = time.time() - t1
     minutes, seconds = divmod(t2, 60)
@@ -200,9 +196,6 @@ def main():
     t3 = time.time() - t0
     minutes, seconds = divmod(t3, 60)
     print(f"Total time taken: {int(minutes)} minutes and {int(seconds)} seconds")
-
-
-
 
 if __name__ == "__main__":
     main()
