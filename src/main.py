@@ -153,12 +153,6 @@ def main():
             "pdf": False,
         },
         {
-            "name": "Textblob",
-            "base_url": "https://textblob.readthedocs.io/_/downloads/en/latest/pdf/",
-            "hrefs_to_skip": [],
-            "pdf": True,
-        },
-        {
             "name": "Pytest",
             "base_url": "https://docs.pytest.org/_/downloads/en/7.4.x/pdf/",
             "hrefs_to_skip": [],
