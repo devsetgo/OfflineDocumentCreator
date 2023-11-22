@@ -173,6 +173,7 @@ def main():
 
     tasks = [process_library(library) for library in tqdm(library_list, ascii=False, leave=True, desc="Libraries Processing")]
     
+    t0_merge = time.time()
     for task in tqdm(tasks, ascii=False, leave=True, desc="Libraries Processed"):
         library_name = task.result()
         merge_pdfs(library_name)
@@ -183,7 +184,7 @@ def main():
 
     # merge_pdfs()
 
-    t2 = time.time() - t1
+    t2 = time.time() - t0_merge
     minutes, seconds = divmod(t2, 60)
     print(f"Time taken to merge the documents: {int(minutes)} minutes and {int(seconds)} seconds")
     
